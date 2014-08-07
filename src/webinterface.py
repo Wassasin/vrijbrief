@@ -15,13 +15,13 @@ class AuthenticationFailure(Exception):
 
 
 class Webinterface:
-    def login(self, username, password):
+    def login(self):
         # Prime session
         self.b.open_url("https://publiek.usc.ru.nl/publiek/login.php")
     
         # Submit login form
         self.b.open_url("https://publiek.usc.ru.nl/publiek/login.php",
-                        [("username", username), ("password", password)])
+                        [("username", self.username), ("password", self.password)])
         
         # Open main page; check if login was successful
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/")
@@ -34,13 +34,14 @@ class Webinterface:
         pass
 
     def __init__(self, username, password):
+        self.username = username
+        self.password = password
         self.b = browser.Browser("Vrijbrief/0.1")
-        self.login(username, password)
+        
+        self.login()
         pass
     
     def listCategories(self):
-        result = []
-    
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/laanbod.php")
         soup = BeautifulSoup(body)
         groups = soup.find("table", rules="groups", class_="clickable_option")
@@ -55,9 +56,8 @@ class Webinterface:
             series = fields[1].get_text().strip()
             pool = fields[2].get_text().strip()
             
-            result.append((value, series, pool))
-            
-        return result
+            yield value, series, pool
+        pass
     
     def listEntries(self, catId):
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/laanbod.php", [("PRESET[Laanbod][inschrijving_id_pool_id][]", catId)])
@@ -85,5 +85,26 @@ class Webinterface:
             locale.setlocale(locale.LC_TIME, ("nl_NL", "utf8@euro"))
             date = datetime.datetime.strptime(date, "%a %d %b %Y").date()
             
-            print date, startTime, endTime, availability, accesskey
+            yield date, startTime, endTime, availability, accesskey
+        pass
+    
+    def addEntry(self, accesskey):
+        # View entry page
+        body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/" + accesskey)
+        soup = BeautifulSoup(body)
+        
+        a = soup.find("a", class_="submitbutton")
+        assert(a.string == "Toevoegen aan Keuzelijst")
+        
+        # Press on add-button
+        confirmkey = a["href"]
+        body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/" + confirmkey)
+        pass
+    
+    def confirm(self):
+        body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/bevestigen.php",
+                                         [("actie", "bevestig"), ("tabel", "klant"), ("kolom", "klant_id"), ("waarde", self.username)])
+                        
+        # Confirming logs you out; thus we need to log back in
+        self.login()
         pass
