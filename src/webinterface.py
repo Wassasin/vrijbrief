@@ -108,3 +108,41 @@ class Webinterface:
         # Confirming logs you out; thus we need to log back in
         self.login()
         pass
+    
+    def listReservations(self):
+        body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/overzicht.php")
+        soup = BeautifulSoup(body)
+        
+        thr = list(soup.find(text="Reserveringen Locaties").parents)[3]
+        assert thr.name == "tr"
+        
+        for tr in thr.find_next_siblings("tr"):
+            fields = tr.find_all("td")
+            
+            accesskey = fields[0].a["href"]
+            pool = fields[1].get_text().strip()
+            date = fields[2].get_text().strip()
+            time = fields[3].get_text().strip()
+            
+            time_matched = RX_TIME.match(time)
+            assert(time_matched)
+            startTime, endTime = time_matched.groups()
+            
+            locale.setlocale(locale.LC_TIME, ("nl_NL", "utf8@euro"))
+            date = datetime.datetime.strptime(date, "%a %d %b %Y").date()
+            
+            yield pool, date, startTime, endTime, accesskey
+        pass
+    
+    def killReservation(self, accesskey):
+        body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/" + accesskey)
+        soup = BeautifulSoup(body)
+        
+        linschrijving_id = soup.find("input", attrs={"name": "linschrijving_id"})["value"]
+        
+        self.b.open_url("https://publiek.usc.ru.nl/publiek/" + accesskey,
+                        [("linschrijving_id", linschrijving_id), ("actie", "bevestig"), ("tabel", "klant"), ("kolom", "klant_id"), ("waarde", self.username)])
+        
+        print "Killed %s" % linschrijving_id
+        
+        pass
