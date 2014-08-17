@@ -113,7 +113,11 @@ class Webinterface:
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/overzicht.php")
         soup = BeautifulSoup(body)
         
-        thr = list(soup.find(text="Reserveringen Locaties").parents)[3]
+        reservations_label = soup.find(text="Reserveringen Locaties")
+        if reservations_label is None:
+            return
+            
+        thr = list(reservations_label.parents)[3]
         assert thr.name == "tr"
         
         for tr in thr.find_next_siblings("tr"):
