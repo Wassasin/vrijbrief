@@ -15,9 +15,12 @@ class AuthenticationFailure(Exception):
 
 
 class Webinterface:
-    def login(self):
+    def login(self, mode=None):
         # Prime session
         self.b.open_url("https://publiek.usc.ru.nl/publiek/login.php")
+    
+        # Submit mode
+        body = self.b.open_url("https://publiek.usc.ru.nl/publiek/login.php", [("PRESET[Login][login_groep][]", self.mode)])
     
         # Submit login form
         self.b.open_url("https://publiek.usc.ru.nl/publiek/login.php",
@@ -33,9 +36,10 @@ class Webinterface:
         print "Logged in successfully as '%s'" % soup.find("div", "footer").string.strip()
         pass
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, mode='S_RU'):
         self.username = username
         self.password = password
+        self.mode = mode
         self.b = browser.Browser("Vrijbrief/0.1")
         
         self.login()
