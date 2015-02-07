@@ -47,7 +47,7 @@ class Webinterface:
     
     def listCategories(self):
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/laanbod.php")
-        soup = BeautifulSoup(body)
+        soup = BeautifulSoup(body, "html5lib")
         groups = soup.find("table", rules="groups", class_="clickable_option")
         for tr in groups.find_all("tr", class_="clickabletr"):
             inputradio = tr.find("input", class_="inputradio")

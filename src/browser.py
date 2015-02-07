@@ -14,7 +14,7 @@ class Browser:
     def __init__(self, userAgent):
         self.userAgent = userAgent
         self.cookies = dict()
-        self.sslVersion = pycurl.SSLVERSION_SSLv3  # SSLv23 / SSLv3
+        self.sslVersion = pycurl.SSLVERSION_TLSv1  # SSLv23 / SSLv3
     
     ''' Parse string with headers to a list of key-value-pairs. '''
     def parseHeaders(self, headerStr):
