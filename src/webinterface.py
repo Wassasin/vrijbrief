@@ -1,6 +1,5 @@
 import browser
 import re
-import locale
 import datetime
 
 from bs4 import BeautifulSoup
@@ -8,7 +7,9 @@ from bs4 import BeautifulSoup
 
 RX_OCCUPATION = re.compile(r"([0-9]+)/([0-9]+)")
 RX_TIME = re.compile(r"([0-9]{2}:[0-9]{2})-([0-9]{2}:[0-9]{2})")
+RX_FULLDATE = re.compile(r"[a-z]{2} ([0-9]{2}) ([a-z]{3}) ([0-9]{4})")
 
+MONTHS = ["jan", "feb", "maa", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
 
 class AuthenticationFailure(Exception):
     pass
@@ -44,7 +45,14 @@ class Webinterface:
         
         self.login()
         pass
-    
+
+    def parseDate(self, date):
+        matched = RX_FULLDATE.match(date)
+        d, mstr, y = matched.groups()
+        m = MONTHS.index(mstr)+1
+
+        return datetime.date(int(y), int(m), int(d))
+
     def listCategories(self):
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/laanbod.php")
         soup = BeautifulSoup(body, "html5lib")
@@ -86,8 +94,7 @@ class Webinterface:
             assert(time_matched)
             startTime, endTime = time_matched.groups()
             
-            locale.setlocale(locale.LC_TIME, ("nl_NL", "utf8@euro"))
-            date = datetime.datetime.strptime(date, "%a %d %b %Y").date()
+            date = self.parseDate(date)
             
             yield date, startTime, endTime, availability, accesskey
         pass
@@ -112,7 +119,7 @@ class Webinterface:
         # Confirming logs you out; thus we need to log back in
         self.login()
         pass
-    
+
     def listReservations(self):
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/overzicht.php")
         soup = BeautifulSoup(body)
@@ -136,8 +143,7 @@ class Webinterface:
             assert(time_matched)
             startTime, endTime = time_matched.groups()
             
-            locale.setlocale(locale.LC_TIME, ("nl_NL", "utf8@euro"))
-            date = datetime.datetime.strptime(date, "%a %d %b %Y").date()
+            date = self.parseDate(date)
             
             yield pool, date, startTime, endTime, accesskey
         pass
