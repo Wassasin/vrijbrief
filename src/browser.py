@@ -2,6 +2,8 @@ import pycurl
 import cStringIO as StringIO
 from urllib import urlencode
 
+import time
+import datetime
 
 class BrowserError(Exception):
     def __init__(self, inner_exception):
@@ -11,10 +13,12 @@ class BrowserError(Exception):
 
 
 class Browser:
-    def __init__(self, userAgent):
+    def __init__(self, userAgent, ratelimit=datetime.timedelta(seconds=1)):
         self.userAgent = userAgent
         self.cookies = dict()
         self.sslVersion = pycurl.SSLVERSION_TLSv1  # SSLv23 / SSLv3
+	self.ratelimit = ratelimit
+	self.lastRequest = datetime.datetime.now() - ratelimit
     
     ''' Parse string with headers to a list of key-value-pairs. '''
     def parseHeaders(self, headerStr):
@@ -41,15 +45,22 @@ class Browser:
         
         return headers
     
+    def wait_ratelimit(self):
+        diff = datetime.datetime.now() - self.lastRequest
+	if(diff < self.ratelimit):
+            time.sleep((self.ratelimit - diff).total_seconds())
+
     ''' Open a url with the current browser setup;
         setting postVars will make it a POST request. '''
     def open_url(self, url, postVars=None):
+	self.wait_ratelimit()
+
         try:
             headers = []
             headers.append("User-Agent: %s" % self.userAgent)
             
             for key, value in self.cookies.items():
-                headers.append("Cookie: %s=%s" % (key, value))
+                headers.append("Cookie: %s" % "; ".join(["%s=%s" % (key, value) for (key, value) in self.cookies.items()]))
         
             c = pycurl.Curl()
             c.setopt(pycurl.FAILONERROR, True)
@@ -75,7 +86,8 @@ class Browser:
                 c.setopt(pycurl.POSTFIELDS, urlencode(postVars))
             
             c.perform()
-            
+	    self.lastRequest = datetime.datetime.now()
+
             return bodyBuffer.getvalue(), self.processHeaders(headerBuffer.getvalue())
         except pycurl.error, e:
             raise BrowserError(e)
