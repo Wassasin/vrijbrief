@@ -81,6 +81,10 @@ class Browser:
             # a Subject Alternate Name field in the certificate.
             # (0 will not check it; 1 is an invalid value)
             c.setopt(pycurl.SSL_VERIFYHOST, 2)
+
+            # c.setopt(pycurl.PROXY, "localhost")
+            # c.setopt(pycurl.PROXYPORT, 23456)
+            # c.setopt(pycurl.PROXYTYPE, pycurl.PROXYTYPE_SOCKS5)
             
             if postVars is not None:
                 c.setopt(pycurl.POSTFIELDS, urlencode(postVars))

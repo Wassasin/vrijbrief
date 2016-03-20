@@ -2,7 +2,7 @@ import browser
 import re
 import datetime
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 
 RX_OCCUPATION = re.compile(r"([0-9]+)/([0-9]+)")
@@ -34,7 +34,7 @@ class Webinterface:
         if soup.find("a", href="logout.php") is None:
             raise AuthenticationFailure
             
-        print "Logged in successfully as '%s'" % soup.find("div", "footer").string.strip()
+        print "Logged in successfully as '%s'" % soup.find("div", "pullrightfooterinfo").string.strip()
         pass
 
     def __init__(self, username, password, mode='S_RU'):
@@ -56,33 +56,38 @@ class Webinterface:
     def listCategories(self):
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/laanbod.php")
         soup = BeautifulSoup(body, "html5lib")
-        groups = soup.find("table", rules="groups", class_="clickable_option")
-        for tr in groups.find_all("tr", class_="clickabletr"):
-            inputradio = tr.find("input", class_="inputradio")
-            fields = tr.find_all("td")
-            
-            assert inputradio["name"] == "PRESET[Laanbod][inschrijving_id_pool_id][]"
-            
-            value = inputradio["value"]
-
-            series = fields[1].get_text().strip()
-            pool = fields[2].get_text().strip()
-            
-            yield value, series, pool
-        pass
+        groups = soup.find("form", id="target")
+        current_series = None
+        for tr in groups.children:
+            if type(tr) is NavigableString:
+                continue
+            elif tr.has_attr('class') and "list-group-item-heading" in tr["class"]:
+                current_series = tr.find("b").get_text().strip()
+            elif tr.name == "label": 
+                assert current_series is not None
+                inputradio = tr.find("input")
+                assert inputradio["name"] == "PRESET[Laanbod][inschrijving_id_pool_id][]"
+                
+                value = inputradio["value"]
+                pool = tr.find('i').get_text().strip()
+                
+                yield value, current_series, pool
     
     def listEntries(self, catId):
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/laanbod.php", [("PRESET[Laanbod][inschrijving_id_pool_id][]", catId)])
         soup = BeautifulSoup(body)
         
-        groups = soup.find("table", rules="groups", class_="clickabletr")
-        for tr in groups.find_all("tr", class_="clickabletr"):
+        groups = soup.find("table", class_="responstable clickabletr")
+        for tr in groups.find_all("tr"):
+            if not tr.has_attr("class") or "clickabletr" not in tr["class"]:
+                continue
+
             fields = tr.find_all("td")
             
-            date = fields[1].get_text().strip()
-            time = fields[2].get_text().strip()
-            accesskey = fields[3].a["href"]
-            occupation = fields[4].get_text().strip()
+            date = fields[0].get_text().strip()
+            time = fields[1].get_text().strip()
+            accesskey = fields[2].a["href"]
+            occupation = fields[3].get_text().strip()
             
             availability = 0
             if occupation != "VOL":
@@ -104,8 +109,8 @@ class Webinterface:
         body, _headers = self.b.open_url("https://publiek.usc.ru.nl/publiek/" + accesskey)
         soup = BeautifulSoup(body)
         
-        a = soup.find("a", class_="submitbutton")
-        assert(a.string == "Toevoegen aan Keuzelijst")
+        a = soup.find("a", class_="btn btn-responsive btn-success pull-right")
+        assert(a.get_text().strip() == "Toevoegen aan Keuzelijst")
         
         # Press on add-button
         confirmkey = a["href"]
